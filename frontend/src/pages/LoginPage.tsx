@@ -114,10 +114,6 @@ export default function LoginPage() {
             <button type="submit" className="btn-primary w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
-            <p className="text-xs text-center mt-2" style={{ color: 'var(--text-secondary)' }}>
-              Student SRNs run from PES1UG25CS001 through PES1UG25CS720, and the password for all seeded students is <strong>student123</strong>.
-              Faculty: FAC001 / faculty123 · Admin: admin / admin123
-            </p>
           </form>
         </div>
       </div>
