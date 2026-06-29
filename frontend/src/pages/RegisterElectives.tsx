@@ -1,24 +1,30 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, Info } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import Sidebar, { studentMenu } from '../components/Sidebar';
-import ThemeToggle from '../components/ThemeToggle';
 import { api } from '../api';
-import type { BranchElectivesGroup, PrerequisiteCheckResult } from '../types';
+import type { BranchElectivesGroup } from '../types';
+
+type DepartmentFilter = 'all' | 'cse' | 'aiml' | 'ece' | 'eee' | 'other';
+
+type Slot = 1 | 2;
 
 export default function RegisterElectivesPage() {
   const [groups, setGroups] = useState<BranchElectivesGroup[]>([]);
-  const [selections, setSelections] = useState<Record<number, number>>({});
+  const [selectedElectives, setSelectedElectives] = useState<Record<Slot, number | null>>({ 1: null, 2: null });
+  const [departmentFilter, setDepartmentFilter] = useState<DepartmentFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [acceptTerms, setAcceptTerms] = useState(false);
-  const [acceptPrereq, setAcceptPrereq] = useState(false);
-  const [prereqResults, setPrereqResults] = useState<PrerequisiteCheckResult[] | null>(null);
-  const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
+    const focusId = Number(searchParams.get('focus'));
+    if (focusId > 0) {
+      setSelectedElectives((prev) => ({ ...prev, 1: focusId }));
+    }
+
     api.getStudentDashboard().then((dash) => {
       if (dash.registration_status === 'Registered') {
         navigate('/student/dashboard');
@@ -28,57 +34,44 @@ export default function RegisterElectivesPage() {
       .then(setGroups)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
-  const selectedIds = Object.values(selections);
+  const selectedIds = [selectedElectives[1], selectedElectives[2]].filter((id): id is number => id !== null);
   const canProceed = selectedIds.length === 2 && new Set(selectedIds).size === 2;
 
-  const handleBranchSelect = (branchId: number, electiveId: number) => {
-    setSelections((prev) => {
-      const next = { ...prev };
-      if (next[branchId] === electiveId) {
-        delete next[branchId];
-      } else {
-        next[branchId] = electiveId;
-      }
-      return next;
-    });
-    setPrereqResults(null);
-  };
-
-  const handleCheckPrerequisites = async () => {
-    if (!canProceed) return;
-    setChecking(true);
-    setError('');
-    try {
-      const [id1, id2] = selectedIds;
-      const res = await api.checkPrerequisites(id1, id2);
-      setPrereqResults(res.results);
-      if (!res.all_passed) {
-        setError('Some prerequisites are not met. Please choose different electives or contact admin.');
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Check failed');
-    } finally {
-      setChecking(false);
+  const filteredGroups = groups.filter((group) => {
+    if (departmentFilter === 'all') return true;
+    if (departmentFilter === 'other') {
+      return !['cse', 'aiml', 'ece', 'eee'].some((dept) => group.branch_name.toLowerCase().includes(dept));
     }
+    const branch = group.branch_name.toLowerCase();
+    return branch.includes(departmentFilter);
+  });
+
+  const handleSelectElective = (slot: Slot, electiveId: number) => {
+    setSelectedElectives((prev) => ({ ...prev, [slot]: electiveId }));
   };
 
-  const handleSubmit = async () => {
-    if (!canProceed || !acceptTerms || !acceptPrereq) return;
-    if (prereqResults && !prereqResults.every((r) => r.passed)) return;
+  const toggleOtherDept = () => {
+    setDepartmentFilter((prev) => (prev === 'other' ? 'all' : 'other'));
+  };
+
+  const selectedCourse = (slot: Slot) =>
+    groups
+      .flatMap((group) => group.electives)
+      .find((elective) => elective.elective_id === selectedElectives[slot]);
+
+  const handleContinue = async () => {
+    if (!canProceed) return;
 
     setSubmitting(true);
     setError('');
     try {
       const [id1, id2] = selectedIds;
-      if (!prereqResults) {
-        const check = await api.checkPrerequisites(id1, id2);
-        if (!check.all_passed) {
-          setPrereqResults(check.results);
-          setError('Prerequisite requirements not met');
-          return;
-        }
+      const check = await api.checkPrerequisites(id1, id2);
+      if (!check.all_passed) {
+        setError('Please choose a different combination of electives for this semester.');
+        return;
       }
       await api.selectElectives(id1, id2);
       navigate('/student/faculty-preference');
@@ -90,149 +83,141 @@ export default function RegisterElectivesPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
       <Sidebar roleLabel="Student" menuItems={studentMenu} />
 
       <main className="flex-1 p-6 lg:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Register Electives</h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Select one elective from two different branches ({selectedIds.length}/2 selected)
-            </p>
-          </div>
-          <ThemeToggle />
-        </div>
-
-        {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading electives...</p>}
-        {error && (
-          <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)' }}>
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-6 animate-fade-in">
-          {groups.map((group) => (
-            <div key={group.branch_id} className="card p-5">
-              <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <span className="badge badge-info">{group.branch_name}</span>
-              </h2>
-              <div className="space-y-3">
-                {group.electives.map((elective) => {
-                  const isSelected = selections[group.branch_id] === elective.elective_id;
-                  const seatsLeft = elective.number_of_seats - elective.enrolled_count;
-                  return (
-                    <label
-                      key={elective.elective_id}
-                      className={`elective-radio ${isSelected ? 'selected' : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name={`branch-${group.branch_id}`}
-                        checked={isSelected}
-                        onChange={() => handleBranchSelect(group.branch_id, elective.elective_id)}
-                        disabled={seatsLeft <= 0}
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium">{elective.elective_name}</p>
-                        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          Seats: {elective.enrolled_count}/{elective.number_of_seats}
-                          {seatsLeft <= 0 ? ' · Full' : ` · ${seatsLeft} available`}
-                        </p>
-                        {elective.prerequisites.length > 0 && (
-                          <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-                            <Info size={12} />
-                            Prerequisites (cross-dept): {elective.prerequisites.map((p) => p.prereq_name).join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="hero-banner card p-6 lg:p-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--accent) 18%, var(--border-color))', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', color: 'var(--accent)' }}>
+                  <Sparkles size={16} />
+                  Elective registration
+                </div>
+                <h1 className="mt-4 text-3xl font-semibold">Semester 5 elective registration</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>
+                  Choose one course for each elective slot, then continue to faculty preference. Sections A to L have 65 students each.
+                </p>
               </div>
             </div>
-          ))}
+          </div>
 
-          {canProceed && (
-            <div className="card p-5 space-y-4">
-              <h3 className="font-semibold">Prerequisite Verification & Terms</h3>
-
-              {!prereqResults && (
-                <button
-                  className="btn-secondary"
-                  onClick={handleCheckPrerequisites}
-                  disabled={checking}
-                >
-                  {checking ? 'Checking...' : 'Verify Prerequisites'}
-                </button>
-              )}
-
-              {prereqResults && (
-                <div className="space-y-2">
-                  {prereqResults.map((r) => (
-                    <div
-                      key={r.elective_id}
-                      className="flex items-start gap-2 p-3 rounded-lg text-sm"
-                      style={{ background: 'var(--bg-primary)' }}
-                    >
-                      {r.passed ? (
-                        <CheckCircle2 size={18} style={{ color: 'var(--success)' }} className="shrink-0" />
-                      ) : (
-                        <XCircle size={18} style={{ color: 'var(--danger)' }} className="shrink-0" />
-                      )}
-                      <div>
-                        <p className="font-medium">{r.elective_name} ({r.branch_name})</p>
-                        {r.is_cross_department ? (
-                          r.passed ? (
-                            <p style={{ color: 'var(--success)' }}>Cross-department prerequisites satisfied</p>
-                          ) : (
-                            <p style={{ color: 'var(--danger)' }}>
-                              Missing: {r.missing_prerequisites.join(', ')}
-                            </p>
-                          )
-                        ) : (
-                          <p style={{ color: 'var(--text-secondary)' }}>Same department — no prerequisite check required</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <label className="flex items-start gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptPrereq}
-                  onChange={(e) => setAcceptPrereq(e.target.checked)}
-                  className="mt-0.5"
-                />
-                I confirm that I have reviewed the prerequisite requirements for my selected electives.
-              </label>
-
-              <label className="flex items-start gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5"
-                />
-                I accept the terms and conditions of elective registration at PES University.
-              </label>
-
-              <button
-                className="btn-primary"
-                disabled={
-                  !acceptTerms ||
-                  !acceptPrereq ||
-                  submitting ||
-                  (prereqResults !== null && !prereqResults.every((r) => r.passed))
-                }
-                onClick={handleSubmit}
-              >
-                {submitting ? 'Processing...' : 'Proceed to Faculty Preference →'}
-              </button>
+          {loading && <div className="card p-6 text-sm" style={{ color: 'var(--text-secondary)' }}>Loading electives...</div>}
+          {error && (
+            <div className="card p-4 text-sm" style={{ color: 'var(--danger)' }}>
+              {error}
             </div>
           )}
+
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-6 animate-fade-in">
+            <section className="card p-6">
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                <Sparkles size={18} />
+                Elective 1
+              </div>
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Current selection</p>
+                  <p className="mt-3 text-lg font-semibold">{selectedCourse(1)?.elective_name ?? 'Choose from the elective'}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {selectedCourse(1)?.branch_name ?? 'Select a course for slot 1.'}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {filteredGroups.flatMap((group) => group.electives).map((elective) => {
+                    const isSelected = selectedElectives[1] === elective.elective_id;
+                    const isUsedElsewhere = selectedElectives[2] === elective.elective_id;
+                    return (
+                      <button
+                        key={elective.elective_id}
+                        type="button"
+                        onClick={() => handleSelectElective(1, elective.elective_id)}
+                        className={`elective-radio w-full text-left ${isSelected ? 'selected' : ''}`}
+                        disabled={isUsedElsewhere && !isSelected}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{elective.elective_name}</p>
+                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{elective.branch_name}</p>
+                          </div>
+                          <span className={`badge ${isSelected ? 'badge-success' : 'badge-info'}`}>
+                            {isSelected ? 'Selected' : isUsedElsewhere ? 'Taken' : 'Choose'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button type="button" className="btn-secondary w-full" onClick={toggleOtherDept}>
+                  Other dept
+                </button>
+              </div>
+            </section>
+
+            <section className="card p-6">
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                <Sparkles size={18} />
+                Elective 2
+              </div>
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-sm font-medium">Current selection</p>
+                  <p className="mt-3 text-lg font-semibold">{selectedCourse(2)?.elective_name ?? 'Choose from the elective'}</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {selectedCourse(2)?.branch_name ?? 'Select a course for slot 2.'}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {filteredGroups.flatMap((group) => group.electives).map((elective) => {
+                    const isSelected = selectedElectives[2] === elective.elective_id;
+                    const isUsedElsewhere = selectedElectives[1] === elective.elective_id;
+                    return (
+                      <button
+                        key={elective.elective_id}
+                        type="button"
+                        onClick={() => handleSelectElective(2, elective.elective_id)}
+                        className={`elective-radio w-full text-left ${isSelected ? 'selected' : ''}`}
+                        disabled={isUsedElsewhere && !isSelected}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{elective.elective_name}</p>
+                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{elective.branch_name}</p>
+                          </div>
+                          <span className={`badge ${isSelected ? 'badge-success' : 'badge-info'}`}>
+                            {isSelected ? 'Selected' : isUsedElsewhere ? 'Taken' : 'Choose'}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button type="button" className="btn-secondary w-full" onClick={toggleOtherDept}>
+                  Other dept
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div className="card p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="font-semibold">Ready to register?</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Select both electives and continue to save your choices.
+                </p>
+              </div>
+              <button className="btn-primary inline-flex items-center gap-2" onClick={handleContinue} disabled={!canProceed || submitting}>
+                {submitting ? 'Registering...' : 'Register'}
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     </div>

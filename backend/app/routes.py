@@ -32,21 +32,32 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         user = db.query(Student).filter(Student.srn == payload.username).first()
         if not user or not verify_password(payload.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+
         display_name = user.student_name
+
     elif role == "faculty":
-        user = db.query(Faculty).filter(Faculty.faculty_id == payload.username).first()
+        user = db.query(Faculty).filter(
+            Faculty.faculty_id == payload.username
+        ).first()
         if not user or not verify_password(payload.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+
         display_name = user.faculty_name
+
     elif role == "admin":
-        user = db.query(Admin).filter(Admin.admin_id == payload.username).first()
+        user = db.query(Admin).filter(
+            Admin.admin_id == payload.username
+        ).first()
         if not user or not verify_password(payload.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+
         display_name = user.admin_name
+
     else:
         raise HTTPException(status_code=400, detail="Invalid role")
 
     token = create_access_token({"sub": user_id, "role": role})
+
     return TokenResponse(
         access_token=token,
         role=role,
@@ -203,16 +214,10 @@ def select_electives(
 
     e1 = db.query(Elective).filter(Elective.elective_id == payload.elective_1_id).first()
     e2 = db.query(Elective).filter(Elective.elective_id == payload.elective_2_id).first()
-    if e1.branch_id == e2.branch_id:
-        raise HTTPException(status_code=400, detail="Only one elective per branch allowed")
-
-    for elective in [e1, e2]:
-        enrolled = get_enrolled_count(db, elective.elective_id)
-        if enrolled >= elective.number_of_seats:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No seats available for {elective.elective_name}",
-            )
+    if not e1 or not e2:
+        raise HTTPException(status_code=404, detail="Selected elective not found")
+    if e1.elective_id == e2.elective_id:
+        raise HTTPException(status_code=400, detail="Electives must be different")
 
     registration = (
         db.query(StudentElective).filter(StudentElective.srn == student.srn).first()

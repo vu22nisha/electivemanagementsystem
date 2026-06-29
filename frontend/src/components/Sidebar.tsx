@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, LogOut, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LogOut, UserCircle, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -57,7 +57,7 @@ export default function Sidebar({ roleLabel, menuItems }: SidebarProps) {
 
 export const studentMenu = [
   { to: '/student/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-  { to: '/student/register', label: 'Register Electives', icon: <BookOpen size={20} /> },
+  { to: '/student/register', label: 'Register', icon: <BookOpen size={20} /> },
 ];
 
 export const facultyMenu = [

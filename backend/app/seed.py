@@ -39,7 +39,7 @@ def seed_database(db: Session) -> None:
     db.flush()
 
     electives = [
-        # CSE - Semester 7
+        # CSE - Semester 
         Elective(elective_id=1, elective_name="Machine Learning", branch_id=1, semester=7, number_of_seats=60),
         Elective(elective_id=2, elective_name="Cloud Computing", branch_id=1, semester=7, number_of_seats=50),
         Elective(elective_id=3, elective_name="Cyber Security", branch_id=1, semester=7, number_of_seats=45),
@@ -107,73 +107,77 @@ def seed_database(db: Session) -> None:
     ]
     db.add_all(faculty_elective_map)
 
-    students = [
-        Student(
-            srn="PES1UG22CS001",
-            student_name="Arjun Patel",
-            section="A",
-            semester=7,
-            branch_id=1,
-            phone_number="9876543210",
-            email="arjun.patel@pes.edu",
-            cgpa=8.75,
-            registration_status="Not Registered",
-            password=hash_password("student123"),
-        ),
-        Student(
-            srn="PES1UG22ME015",
-            student_name="Rahul Sharma",
-            section="B",
-            semester=7,
-            branch_id=3,
-            phone_number="9876543211",
-            email="rahul.sharma@pes.edu",
-            cgpa=7.90,
-            registration_status="Not Registered",
-            password=hash_password("student123"),
-        ),
-        Student(
-            srn="PES1UG22EC008",
-            student_name="Sneha Reddy",
-            section="A",
-            semester=7,
-            branch_id=2,
-            phone_number="9876543212",
-            email="sneha.reddy@pes.edu",
-            cgpa=9.10,
-            registration_status="Registered",
-            password=hash_password("student123"),
-        ),
+    students = []
+    # Create 720 dummy CSE students
+    student_names = [
+        "Arjun Patel", "Bhavna Singh", "Chetan Kumar", "Diya Nair", "Eshwar Reddy",
+        "Farha Khan", "Gagan Verma", "Hema Iyer", "Isha Gupta", "Jatin Sharma",
+        "Kavya Desai", "Laxmi Menon", "Mohan Das", "Nisha Patel", "Omkar Kulkarni",
+        "Priya Sharma", "Qasim Ahmed", "Ravi Kumar", "Sneha Roy", "Teja Srinivas",
+        "Usha Malik", "Varun Singh", "Waqar Hassan", "Yash Kapoor", "Zara Khan",
+        "Aditya Banerjee", "Bhanu Prakash", "Chandni Gupta", "Deepak Verma", "Eesha Reddy",
     ]
+    sections = ["A", "B", "C", "D", "E"]
+    hashed_pwd = hash_password("student123")  # Hash once, reuse for all
+
+    for index in range(1, 721):
+        srn = f"PES1UG25CS{index:03d}"
+        name = student_names[(index - 1) % len(student_names)]
+        section = sections[(index - 1) % len(sections)]
+        cgpa = 7.0 + ((index % 31) * 0.1)
+        students.append(
+            Student(
+                srn=srn,
+                student_name=f"{name} {index}",
+                section=section,
+                semester=7,
+                branch_id=1,
+                phone_number=f"987650{index:04d}",
+                email=f"cs{index}@pes.edu",
+                cgpa=min(cgpa, 10.0),
+                registration_status="Not Registered",
+                password=hashed_pwd,
+            )
+        )
+
     db.add_all(students)
     db.flush()
 
-    # Student prerequisites completed
-    db.execute(
-        student_prerequisites.insert(),
-        [
-            {"srn": "PES1UG22CS001", "prereq_id": 1},
-            {"srn": "PES1UG22CS001", "prereq_id": 2},
-            {"srn": "PES1UG22CS001", "prereq_id": 4},
-            {"srn": "PES1UG22CS001", "prereq_id": 5},
-            {"srn": "PES1UG22ME015", "prereq_id": 1},
-            {"srn": "PES1UG22ME015", "prereq_id": 2},
-            {"srn": "PES1UG22ME015", "prereq_id": 4},
-            {"srn": "PES1UG22EC008", "prereq_id": 3},
-            {"srn": "PES1UG22EC008", "prereq_id": 4},
-        ],
-    )
+    # Student prerequisites completed - add for first 100 students
+    prereq_data = []
+    for i in range(1, 101):
+        srn = f"PES1UG25CS{i:03d}"
+        if i % 3 == 0:
+            prereq_data.extend([
+                {"srn": srn, "prereq_id": 1},
+                {"srn": srn, "prereq_id": 2},
+                {"srn": srn, "prereq_id": 4},
+                {"srn": srn, "prereq_id": 5},
+            ])
+        elif i % 3 == 1:
+            prereq_data.extend([
+                {"srn": srn, "prereq_id": 1},
+                {"srn": srn, "prereq_id": 2},
+                {"srn": srn, "prereq_id": 4},
+            ])
+        else:
+            prereq_data.extend([
+                {"srn": srn, "prereq_id": 3},
+                {"srn": srn, "prereq_id": 4},
+            ])
+    
+    db.execute(student_prerequisites.insert(), prereq_data)
 
-    # Pre-registered student
+    # Pre-registered student from the 720
     db.add(
         StudentElective(
-            srn="PES1UG22EC008",
-            elective_1_id=4,
-            elective_2_id=6,
-            faculty_elective_1_pref_1="FAC004",
-            faculty_elective_1_pref_2="FAC005",
-            faculty_elective_2_pref_1="FAC006",
-            faculty_elective_2_pref_2="FAC004",
+            srn="PES1UG25CS010",
+            elective_1_id=1,
+            elective_2_id=2,
+            faculty_elective_1_pref_1="FAC001",
+            faculty_elective_1_pref_2="FAC002",
+            faculty_elective_2_pref_1="FAC003",
+            faculty_elective_2_pref_2="FAC001",
         )
     )
 

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Users, ShieldCheck } from 'lucide-react';
+import { GraduationCap, ShieldCheck, Users } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 
 type Role = 'student' | 'faculty' | 'admin';
 
-const roles: { id: Role; label: string; icon: React.ReactNode; usernameLabel: string }[] = [
-  { id: 'student', label: 'Student', icon: <GraduationCap size={22} />, usernameLabel: 'SRN / Username' },
-  { id: 'faculty', label: 'Faculty', icon: <Users size={22} />, usernameLabel: 'Faculty ID / Username' },
-  { id: 'admin', label: 'Administrator', icon: <ShieldCheck size={22} />, usernameLabel: 'Admin Username' },
+const roles: { id: Role; label: string; icon: React.ReactNode; usernameLabel: string; hint: string }[] = [
+  { id: 'student', label: 'Student', icon: <GraduationCap size={20} />, usernameLabel: 'SRN / Username', hint: 'Login with your SRN and password' },
+  { id: 'faculty', label: 'Faculty', icon: <Users size={20} />, usernameLabel: 'Faculty ID / Username', hint: 'Login with your faculty ID and password' },
+  { id: 'admin', label: 'Admin', icon: <ShieldCheck size={20} />, usernameLabel: 'Admin Username', hint: 'Login with your admin username and password' },
 ];
 
 export default function LoginPage() {
@@ -45,31 +45,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg-primary)' }}>
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
-            style={{ background: 'var(--accent)' }}
-          >
-            <GraduationCap className="w-9 h-9 text-white" />
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl mb-4" style={{ background: 'var(--accent)' }}>
+            <GraduationCap className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            PES University
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Elective Management System
-          </p>
-          <p className="text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>
-            Welcome! Please sign in to continue.
-          </p>
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>PES University</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Elective Management System</p>
         </div>
 
         <div className="card p-6">
@@ -79,12 +66,7 @@ export default function LoginPage() {
                 key={r.id}
                 type="button"
                 onClick={() => setRole(r.id)}
-                className="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-lg text-xs font-medium cursor-pointer transition-all border"
-                style={{
-                  background: role === r.id ? 'var(--accent)' : 'var(--bg-primary)',
-                  color: role === r.id ? 'white' : 'var(--text-secondary)',
-                  borderColor: role === r.id ? 'var(--accent)' : 'var(--border-color)',
-                }}
+                className={`role-chip flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-xs font-medium cursor-pointer transition-all border ${role === r.id ? 'active' : ''}`}
               >
                 {r.icon}
                 {r.label}
@@ -102,9 +84,12 @@ export default function LoginPage() {
                 className="input-field"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={role === 'student' ? 'PES1UG22CS001' : role === 'faculty' ? 'FAC001' : 'admin'}
+                placeholder={role === 'student' ? 'PES1UG25CS001' : role === 'faculty' ? 'FAC001' : 'admin'}
                 required
               />
+              <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+                {selectedRole.hint}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>
@@ -129,14 +114,11 @@ export default function LoginPage() {
             <button type="submit" className="btn-primary w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
+            <p className="text-xs text-center mt-2" style={{ color: 'var(--text-secondary)' }}>
+              Student SRNs run from PES1UG25CS001 through PES1UG25CS720, and the password for all seeded students is <strong>student123</strong>.
+              Faculty: FAC001 / faculty123 · Admin: admin / admin123
+            </p>
           </form>
-
-          <div className="mt-6 pt-4 border-t text-xs space-y-1" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
-            <p className="font-medium">Demo credentials:</p>
-            <p>Student: PES1UG22CS001 / student123</p>
-            <p>Faculty: FAC001 / faculty123</p>
-            <p>Admin: admin / admin123</p>
-          </div>
         </div>
       </div>
     </div>
