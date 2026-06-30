@@ -42,7 +42,7 @@ npm install
 npm run dev
 ```
 
-Portal: http://localhost:5173
+Portal: 
 
 ## Demo Credentials
 
