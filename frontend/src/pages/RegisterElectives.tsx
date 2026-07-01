@@ -41,11 +41,26 @@ export default function RegisterElectivesPage() {
 
   const filteredGroups = groups.filter((group) => {
     if (departmentFilter === 'all') return true;
+
+    const departmentMap: Record<DepartmentFilter, string[]> = {
+      all: [],
+      cse: ['Computer Science & Engineering'],
+      aiml: ['Information Science'],
+      ece: ['Electronics & Communication'],
+      eee: ['Electrical & Electronics'],
+      other: [],
+    };
+
     if (departmentFilter === 'other') {
-      return !['cse', 'aiml', 'ece', 'eee'].some((dept) => group.branch_name.toLowerCase().includes(dept));
+      return ![
+        'Computer Science & Engineering',
+        'Information Science',
+        'Electronics & Communication',
+        'Electrical & Electronics',
+      ].includes(group.branch_name);
     }
-    const branch = group.branch_name.toLowerCase();
-    return branch.includes(departmentFilter);
+
+    return departmentMap[departmentFilter]?.includes(group.branch_name);
   });
 
   const handleSelectElective = (slot: Slot, electiveId: number) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Mail, Sparkles } from 'lucide-react';
 import Sidebar, { studentMenu } from '../components/Sidebar';
+import ThemeToggle from '../components/ThemeToggle';
 import { api } from '../api';
 import type { BranchElectivesGroup, StudentDashboard } from '../types';
 
@@ -85,10 +86,10 @@ export default function StudentDashboardPage() {
                   <p className="text-sm font-medium uppercase tracking-[0.24em]" style={{ color: 'var(--text-secondary)' }}>Student details</p>
                   <p className="mt-4 text-2xl font-semibold">{data.student_name}</p>
                   <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {data.branch_name || 'Computer Science & Engineering'} • Semester 5
+                    {data.branch_name || 'Computer Science & Engineering'} • Semester {data.semester}
                   </p>
                   <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Section A–L • 65 students per section
+                    Section {data.section}
                   </p>
                 </div>
 

@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,21 @@ from app.services import elective_to_out, get_faculty_for_elective, get_enrolled
 router = APIRouter()
 
 
+def clean_student_name(name: str) -> str:
+    sanitized = re.sub(r'\d+', '', name).strip()
+    parts = sanitized.split()
+    return " ".join(parts[:2]) if parts else sanitized
+
+
+def derive_section_from_srn(srn: str) -> str:
+    match = re.search(r'(\d+)$', srn)
+    if not match:
+        return ""
+    index = int(match.group(1))
+    sections = ["A", "B", "C", "D", "E"]
+    return sections[(index - 1) % len(sections)]
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     role = payload.role.lower()
@@ -33,7 +50,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         if not user or not verify_password(payload.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        display_name = user.student_name
+        display_name = clean_student_name(user.student_name)
 
     elif role == "faculty":
         user = db.query(Faculty).filter(
@@ -92,8 +109,8 @@ def student_dashboard(
 
     return StudentDashboardOut(
         srn=student.srn,
-        student_name=student.student_name,
-        section=student.section,
+        student_name=clean_student_name(student.student_name),
+        section=student.section or derive_section_from_srn(student.srn),
         semester=student.semester,
         branch_id=student.branch_id,
         branch_name=branch.branch_name if branch else "",

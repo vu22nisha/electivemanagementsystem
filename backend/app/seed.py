@@ -128,7 +128,7 @@ def seed_database(db: Session) -> None:
         students.append(
             Student(
                 srn=srn,
-                student_name=f"{name} {index}",
+                student_name=name,
                 section=section,
                 semester=7,
                 branch_id=1,
